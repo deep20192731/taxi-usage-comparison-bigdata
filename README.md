@@ -13,12 +13,12 @@
 1. Taxi Data(we used year 2015 data) http://www.nyc.gov/html/tlc/html/about/trip_record_data.shtml
 2. Uber data https://github.com/fivethirtyeight/uber-tlc-foil-response
 
-# Technologies Used
+# <h4>Technologies Used</h4>
 1. Hadoop Streaming(Python) on AWS Cluster.
 2. Rtree and Shapely for converting lat/long to neighbourhoods (Run the script file in bootstrap folder as bootstrap action in EMR Cluster. This will install the rtree and shapely packages in EMR cluster)
 2. Tableau
 
-# Results
+# <h4>Results</h4>
 Trips/Month. See the Dip from July-August. This was because of the strike against Uber <br>
 <img src="./results/trips_per_month.jpg" width="1000px" height="500px" /> <br> <br> <br>
 
