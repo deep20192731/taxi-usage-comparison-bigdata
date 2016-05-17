@@ -3,6 +3,8 @@
 import sys
 import json
 import datetime
+from rtree import index as rtree
+from matplotlib.path import Path
 from shapely.geometry import Point, shape
 
 sys.path.append('.')
@@ -31,23 +33,30 @@ def location_valid(location):
         else:
             return False
     except:
-        print >> sys.stderr, location
+        print >> sys.stderr, ("Location Invalid", location)
         return False
-
-def point_in_polygon(location, shapes):
+  
+def findNeighborhood(location, index, neighborhoods):
     try:
         if(location_valid(location)):
             point = Point(location[0], location[1])
-            for shp in shapes:
-                polygon = shape(shp['geometry'])
-                if(polygon.contains(point)):
-                    return (shp['properties']['borough'], shp['properties']['neighborhood'])
-        else:
-            return ('Unknown', 'Unknown')
-        return ('Unknown', 'Unknown')
-    except:
-        print >> sys.stderr, location
-        return ('Unknown', 'Unknown')
+            match = index.intersection((location[0], location[1], location[0], location[1]))
+            for a in match:
+                if neighborhoods[a][2].contains(point):
+                    return a
+        return -1
+    except Exception,e:
+        print >> sys.stderr, ("Niehbourhood Invalid", location, str(e))
+        return -1
+    
+def readNeighborhood(shapeFile, index, neighborhoods):
+    for sr in shapeFile:
+        paths = map(Path, sr['geometry']['coordinates'])
+        bbox = paths[0].get_extents()
+        map(bbox.update_from_path, paths[1:])
+        index.insert(len(neighborhoods), list(bbox.get_points()[0])+list(bbox.get_points()[1]))
+        neighborhoods.append((sr['properties']['borough'], sr['properties']['neighborhood'], shape(sr['geometry'])))
+    neighborhoods.append(('UNKNOWN', 'UNKNOWN', None))    
     
 def parseInput():
     for line in sys.stdin:
@@ -61,17 +70,21 @@ def mapper():
     # Import file as JSON
     with open('pediacitiesnycneighborhoods.geojson') as f:
         js = json.load(f)
-        
+    
+    neighborhoods = []
+    index = rtree.Index()    
+    readNeighborhood(js['features'], index, neighborhoods)
+    
     for values in parseInput():
         if(compareTime(values[1], values[2])):
             # (Longitude, Latitude) in shape files are in same metric as geo-json files
             pickup_location = (float(values[5]), float(values[6]))
             dropoff_location = (float(values[9]), float(values[10]))
             
-            pickup_bou, pickup_nei = point_in_polygon(pickup_location, js['features'])
-            dropoff_bou, dropoff_nei = point_in_polygon(dropoff_location, js['features'])
+            pickup_index = findNeighborhood(pickup_location, index, neighborhoods)
+            dropoff_index = findNeighborhood(dropoff_location, index, neighborhoods)
             
-            print "%s\t%s,%s,%s,%s" % (','.join(values), pickup_bou, pickup_nei, dropoff_bou, dropoff_nei)
+            print "%s\t%s,%s,%s,%s" % (','.join(values), neighborhoods[pickup_index][0], neighborhoods[pickup_index][1], neighborhoods[dropoff_index][0], neighborhoods[dropoff_index][1])
 
 
 if __name__=='__main__':
